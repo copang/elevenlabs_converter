@@ -52,9 +52,9 @@ class DocxReaderScreen extends StatefulWidget {
 
 class _DocxReaderScreenState extends State<DocxReaderScreen> {
   List<Chapter> chapters = [];
-  final breakTimeDefault = "<break time=\"1.1s\" />";
-  final breakTimeSubtitle = "<break time=\"0.5s\" />";
-  final breakTimeNumberic = "<break time=\"0.3s\" />";
+  final breakTimeDefault = "<break time=“1.1s” />";
+  final breakTimeSubtitle = "<break time=“0.5s” />";
+  final breakTimeNumberic = "<break time=“0.3s” />";
   final specialPhrases = [
     "Quyển sách này nói về điều gì",
     "Về tác giả",
