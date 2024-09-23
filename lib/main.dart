@@ -8,6 +8,11 @@ import 'package:flutter/services.dart';
 import 'package:xml/xml.dart';
 import 'dart:html' as html;
 
+enum DocType {
+  stg,
+  ntc
+}
+
 void main() {
   runApp(const MyApp());
 }
@@ -51,7 +56,9 @@ class DocxReaderScreen extends StatefulWidget {
 }
 
 class _DocxReaderScreenState extends State<DocxReaderScreen> {
+  DocType? currentDocType;
   List<Chapter> chapters = [];
+  List<Line> ntcContent = [];
   final breakTimeDefault = "<break time=“1.1s” />";
   final breakTimeSubtitle = "<break time=“0.5s” />";
   final breakTimeNumberic = "<break time=“0.3s” />";
@@ -62,10 +69,71 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
   ];
 
   Future<void> _readNTCFile() async {
-    
+    currentDocType = DocType.ntc;
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['docx'],
+    );
+
+    if (result != null) {
+      Archive? archive;
+
+      // Giải nén file docx
+      if (!kIsWeb) {
+        File file = File(result.files.single.path!);
+        final bytes = await file.readAsBytes();
+        archive = ZipDecoder().decodeBytes(bytes);
+      } else {
+        Uint8List? fileBytes = result.files.first.bytes;
+        archive = ZipDecoder().decodeBytes(fileBytes as List<int>);
+      }
+
+      // Tìm file chứa văn bản (usually 'word/document.xml')
+      ArchiveFile? documentFile;
+      for (final file in archive.files) {
+        if (file.name == 'word/document.xml') {
+          documentFile = file;
+          break;
+        }
+      }
+
+      if (documentFile == null) {
+        setState(() {
+          ntcContent = [];
+        });
+        return;
+      }
+
+      // Đọc nội dung XML từ document.xml
+      final contentXml = documentFile.content as List<int>;
+      final documentXml = XmlDocument.parse(utf8.decode(contentXml));
+      final paragraphs = documentXml.findAllElements('w:p');
+      List<Line> tempNtcContent = [];
+
+      for (final paragraph in paragraphs) {
+        StringBuffer paragraphBuffer = StringBuffer();
+        for (final run in paragraph.findAllElements('w:r')) {
+          final text = run.findElements('w:t').map((e) => e.text).join();
+          paragraphBuffer.write(text);
+        }
+
+        // Nếu đoạn văn rỗng thì bỏ qua
+        var paragraphText = paragraphBuffer.toString().trim();
+        if (paragraphText.isEmpty) {
+          continue;
+        }
+
+        tempNtcContent.add(Line(content: paragraphText, isBold: false));
+      }
+
+      setState(() {
+        ntcContent = tempNtcContent;
+      });
+    }
   }
 
   Future<void> _readSTGFile() async {
+    currentDocType = DocType.stg;
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['docx'],
@@ -103,7 +171,6 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
       // Đọc nội dung XML từ document.xml
       final contentXml = documentFile.content as List<int>;
       final documentXml = XmlDocument.parse(utf8.decode(contentXml));
-
       final paragraphs = documentXml.findAllElements('w:p');
       List<Chapter> tempChapters = [];
       Chapter? currentChapter;
@@ -243,7 +310,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
       .replaceAll("'", '&#39;');
   }
 
-  Future<void> _saveHtml() async {
+  Future<void> _saveHtmlForSTG() async {
     StringBuffer htmlContent = StringBuffer();
 
     // Thêm khai báo meta UTF-8
@@ -300,7 +367,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
 
       // Tạo thẻ <a> để thực hiện tải file
       final anchor = html.AnchorElement(href: url)
-        ..setAttribute("download", "doc_for_ai.html")
+        ..setAttribute("download", "sach_tinh_gon_ai.html")
         ..click(); // Kích hoạt sự kiện tải xuống
 
       // Giải phóng URL sau khi tải xong
@@ -308,115 +375,143 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
     }
   }
 
-  Future<void> _saveHtmlOld() async {
-    try {
+  Future<void> _saveHtmlForNTC() async {
+    StringBuffer htmlContent = StringBuffer();
+
+    // Thêm khai báo meta UTF-8
+    htmlContent.write("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Document</title>
+    </head>
+    <body>
+    """);
+
+    // Lặp qua từng Line để tạo nội dung HTML
+    for (Line line in ntcContent) {
+      htmlContent.write("<h6>${_escapeHtml(line.content)}</h6>");
+    }
+
+    // Đóng body và html
+    htmlContent.write("</body></html>");
+
+    if (!kIsWeb) {
       final result = await FilePicker.platform.saveFile(
         dialogTitle: 'Chọn nơi lưu file HTML',
-        fileName: 'book.html',
+        fileName: 'ntc.html',
         allowedExtensions: ['html'],
         type: FileType.custom,
       );
-
       if (result != null) {
         final file = File(result);
-        StringBuffer htmlContent = StringBuffer();
-
-        // Thêm khai báo meta UTF-8
-        htmlContent.write("""
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Document</title>
-        </head>
-        <body>
-        """);
-
-        // Lặp qua từng Chapter và Part để tạo nội dung HTML
-        for (Chapter chapter in chapters) {
-          htmlContent.write("<h2>${_escapeHtml(chapter.title.content)}</h2>"); // Title là Heading 2
-          for (Part part in chapter.parts) {
-            for (Line line in part.lines) {
-              String escapedContent = _escapeHtml(line.content);
-              if (line.isBold) {
-                // Nếu isBold = true thì xuất thẻ <b>
-                htmlContent.write("<p><b>$escapedContent</b></p>");
-              } else {
-                // Xuất dòng bình thường với thẻ <p>
-                htmlContent.write("<p>$escapedContent</p>");
-              }
-            }
-          }
-        }
-
-        // Đóng body và html
-        htmlContent.write("</body></html>");
-
-        // Lưu file với mã hóa UTF-8
         await file.writeAsString(htmlContent.toString(), encoding: utf8);
-        print('Đã lưu file HTML tại ${file.path}');
       }
-    } catch (e) {
-      print('Lỗi khi lưu file HTML: $e');
+    } else {
+      // Chuyển đổi nội dung HTML thành Uint8List
+      final bytes = Uint8List.fromList(utf8.encode(htmlContent.toString()));
+
+      // Tạo một Blob từ nội dung đã mã hóa
+      final blob = html.Blob([bytes]);
+
+      // Tạo URL để tải tệp
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      // Tạo thẻ <a> để thực hiện tải file
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", "nguoi_thanh_cong_ai.html")
+        ..click(); // Kích hoạt sự kiện tải xuống
+
+      // Giải phóng URL sau khi tải xong
+      html.Url.revokeObjectUrl(url);
     }
   }
 
   // Hiển thị dữ liệu đã xử lý và nút "Copy"
-  List<Widget> _buildChapterWidgets() {
-    return chapters.map((chapter) {
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 20),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: Colors.lightBlueAccent.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                String chapterContent = "${chapter.title.content}\n";
-                for (var part in chapter.parts) {
-                  for (var line in part.lines) {
-                    chapterContent += "${line.content}\n";
-                  }
-                }
-
-                Clipboard.setData(ClipboardData(text: chapterContent));
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã sao chép!")));
-              },
-              child: const Text("Sao chép"),
-            ),
-            const SizedBox(height: 10),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '${chapter.title.content}\n',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black, // Cần chỉ định color cho TextSpan
-                    ),
-                  ),
-                  ...chapter.parts.expand((part) {
-                    return part.lines.map((line) {
-                      return TextSpan(
-                        text: '${line.content}\n',
-                        style: const TextStyle(
-                          //fontWeight: line.isBold ? FontWeight.bold : FontWeight.normal,
-                          color: Colors.black, // Cần chỉ định color cho TextSpan
-                        ),
-                      );
-                    });
-                  }),
-                ],
+  List<Widget> _buildWidgets() {
+    if (currentDocType == DocType.ntc) {
+      return ntcContent.map((line) {
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: Colors.lightBlueAccent.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: line.content));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã sao chép!")));
+                },
+                child: const Text("Sao chép"),
               ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
+              const SizedBox(height: 10),
+              Text('${line.content}\n', 
+                style: const TextStyle(color: Colors.black))
+            ],
+          )
+        );
+      }).toList();
+    } else {
+      return chapters.map((chapter) {
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: Colors.lightBlueAccent.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  String chapterContent = "${chapter.title.content}\n";
+                  for (var part in chapter.parts) {
+                    for (var line in part.lines) {
+                      chapterContent += "${line.content}\n";
+                    }
+                  }
+
+                  Clipboard.setData(ClipboardData(text: chapterContent));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã sao chép!")));
+                },
+                child: const Text("Sao chép"),
+              ),
+              const SizedBox(height: 10),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${chapter.title.content}\n',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black, // Cần chỉ định color cho TextSpan
+                      ),
+                    ),
+                    ...chapter.parts.expand((part) {
+                      return part.lines.map((line) {
+                        return TextSpan(
+                          text: '${line.content}\n',
+                          style: const TextStyle(
+                            //fontWeight: line.isBold ? FontWeight.bold : FontWeight.normal,
+                            color: Colors.black, // Cần chỉ định color cho TextSpan
+                          ),
+                        );
+                      });
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList();
+    }
   }
 
   @override
@@ -442,15 +537,20 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
                 ),
                 const SizedBox(width: 20),
                 ElevatedButton(
-                  onPressed: _saveHtml,
+                  onPressed: () {
+                    if (currentDocType != null) {
+                      currentDocType == DocType.stg ? _saveHtmlForSTG() : _saveHtmlForNTC();
+                    }
+                  },
                   child: const Text("Xuất file HTML"),
                 )
               ],
             ),
+            currentDocType == null ? Container() :
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
-                  children: _buildChapterWidgets(),
+                  children: _buildWidgets(),
                 ),
               ),
             ),
