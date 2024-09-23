@@ -83,7 +83,6 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
         Uint8List? fileBytes = result.files.first.bytes;
         archive = ZipDecoder().decodeBytes(fileBytes as List<int>);
       }
-      //final archive = ZipDecoder().decodeBytes(bytes);
 
       // Tìm file chứa văn bản (usually 'word/document.xml')
       ArchiveFile? documentFile;
@@ -130,14 +129,16 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
         }
 
         // Nếu đoạn văn rỗng thì bỏ qua
-        if (paragraphBuffer.toString().trim().isEmpty) {
+        var paragraphText = paragraphBuffer.toString().trim();
+        if (paragraphText.isEmpty) {
           continue;
         }
 
         // Kiểm tra xem đoạn này có phải là tiêu đề (in đậm) hay không
-        if (isBoldParagraph) {
+        bool containsSpecialPhrase = specialPhrases.any((phrase) => paragraphText.contains(phrase));
+        if (isBoldParagraph && !containsSpecialPhrase) {
           // Tạo Chapter mới nếu gặp title mới
-          if (currentChapter != null && currentChapter.parts.isNotEmpty) {
+          if (currentChapter != null) {
             for (int i = currentChapter.parts.length - 1; i > 0; i--) {
               var checkingPart = currentChapter.parts[i];
               if (checkingPart.lines.length == 2 && checkingPart.lines.first.content.startsWith('-')) {
@@ -148,13 +149,13 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
             tempChapters.add(currentChapter);
           }
           currentChapter = Chapter(
-            title: Line(content: paragraphBuffer.toString().trim(), isBold: true),
+            title: Line(content: paragraphText, isBold: true),
             parts: [],
           );
           currentPart = null; // Reset part cho Chapter mới
         } else {
           // Nếu không phải tiêu đề, tách đoạn văn thành câu
-          final sentences = _splitIntoSentences(paragraphBuffer.toString().trim());
+          final sentences = _splitIntoSentences(paragraphText);
 
           currentPart ??= Part(lines: []);
 
