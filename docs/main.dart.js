@@ -39708,7 +39708,7 @@ a2+=a6}a7=B.d.l1(a2.charCodeAt(0)==0?a2:a2)
 if(a7.length===0)continue
 a8=B.b.f3(j,new A.a4q(a7))
 if(a1&&!a8){if(d!=null){for(b=d.b,a9=b.length-1;a9>0;--a9){a0=b[a9].a
-if(a0.length===2&&B.d.bP(B.b.gJ(a0).a,"-")){B.b.gN(a0).a="<break time=\u201c1.1s\u201d />"
+if(a0.length===1&&B.d.bP(B.b.gJ(a0).a,"-")){a0.push(new A.e1("<break time=\u201c1.1s\u201d />",!1))
 break}}h.push(d)}d=new A.nK(new A.e1(a7,!0),A.b([],e))
 c=null}else{b0=p.Zs(a7)
 if(c==null)c=new A.mi(A.b([],f))
@@ -39720,13 +39720,12 @@ c=new A.mi(A.b([],f))}}}}if(d!=null){c.toString
 p.CB(c)
 h.push(d)}for(m=h.length,b1=0;b1<h.length;h.length===m||(0,A.A)(h),++b1){k=h[b1].b
 if(k.length!==0){k=B.b.gN(k).a
-if(k.length!==0){j=B.b.gN(k).a
-j=A.ajT(j,"break time",0)}else j=!1
+if(k.length!==0){j=B.b.gN(k)
+j=A.ajT(j.a,"break time",0)}else j=!1
 if(j)k.pop()}}p.ap(new A.a4r(p,h))}case 1:return A.T(q,r)}})
 return A.U($async$qV,r)},
 CB(a){var s=a.a
-if(s.length===1&&B.d.bP(B.b.gJ(s).a,"-"))s.push(new A.e1("<break time=\u201c0.3s\u201d />",!1))
-else if(B.b.f3(s,new A.a4d(this)))s.push(new A.e1("<break time=\u201c0.5s\u201d />",!1))
+if(!(s.length===1&&B.d.bP(B.b.gJ(s).a,"-")))if(B.b.f3(s,new A.a4d(this)))s.push(new A.e1("<break time=\u201c0.5s\u201d />",!1))
 else s.push(new A.e1("<break time=\u201c1.1s\u201d />",!1))},
 Zs(a){var s,r,q,p,o,n,m=A.h7("([.!?])\\s+",!0,!1),l=A.b([],t.s),k=m.od(0,a)
 for(s=new A.pC(k.a,k.b,k.c),r=t.Qz,q=0;s.p();q=n){p=s.d
@@ -39739,16 +39738,14 @@ var $async$xo=A.W(function(a,a0){if(a===1)return A.S(a0,r)
 while(true)switch(s){case 0:b=new A.bH("")
 b.a=""+u.Y
 for(p=q.e,o=p.length,n=0;n<p.length;p.length===o||(0,A.A)(p),++n){m=p[n]
-l=m.a.a
-l=A.dK(l,"&","&amp;")
+l=A.dK(m.a.a,"&","&amp;")
 l=A.dK(l,"<","&lt;")
 l=A.dK(l,">","&gt;")
 l=A.dK(l,'"',"&quot;")
 l="<h2>"+A.dK(l,"'","&#39;")+"</h2>"
 b.a+=l
 for(l=m.b,k=l.length,j=0;j<l.length;l.length===k||(0,A.A)(l),++j)for(i=l[j].a,h=i.length,g=0;g<i.length;i.length===h||(0,A.A)(i),++g){f=i[g]
-e=f.a
-e=A.dK(e,"&","&amp;")
+e=A.dK(f.a,"&","&amp;")
 e=A.dK(e,"<","&lt;")
 e=A.dK(e,">","&gt;")
 e=A.dK(e,'"',"&quot;")
@@ -39763,20 +39760,20 @@ c.setAttribute("download","sach_tinh_gon_ai.html")
 c.click();(self.URL||self.webkitURL).revokeObjectURL(p)
 return A.T(null,r)}})
 return A.U($async$xo,r)},
-xn(){var s=0,r=A.V(t.H),q=this,p,o,n,m,l,k
+xn(){var s=0,r=A.V(t.H),q=this,p,o,n,m,l,k,j
 var $async$xn=A.W(function(a,b){if(a===1)return A.S(b,r)
-while(true)switch(s){case 0:k=""+u.Y
-for(p=q.f,o=p.length,n=0;n<p.length;p.length===o||(0,A.A)(p),++n){m=p[n].a
-m=A.dK(m,"&","&amp;")
-m=A.dK(m,"<","&lt;")
-m=A.dK(m,">","&gt;")
-m=A.dK(m,'"',"&quot;")
-k+="<h6>"+A.dK(m,"'","&#39;")+"</h6>"}k+="</body></html>"
-k=(self.URL||self.webkitURL).createObjectURL(A.adP([new Uint8Array(A.fI(B.b_.cX(k.charCodeAt(0)==0?k:k)))]))
-k.toString
-l=A.adL(k)
-l.setAttribute("download","nguoi_thanh_cong_ai.html")
-l.click();(self.URL||self.webkitURL).revokeObjectURL(k)
+while(true)switch(s){case 0:j=""+u.Y
+for(p=q.f,o=p.length,n=0;n<p.length;p.length===o||(0,A.A)(p),++n){m=p[n]
+l=A.dK(m.a,"&","&amp;")
+l=A.dK(l,"<","&lt;")
+l=A.dK(l,">","&gt;")
+l=A.dK(l,'"',"&quot;")
+j+="<h6>"+A.dK(l,"'","&#39;")+"</h6>"}j+="</body></html>"
+j=(self.URL||self.webkitURL).createObjectURL(A.adP([new Uint8Array(A.fI(B.b_.cX(j.charCodeAt(0)==0?j:j)))]))
+j.toString
+k=A.adL(j)
+k.setAttribute("download","nguoi_thanh_cong_ai.html")
+k.click();(self.URL||self.webkitURL).revokeObjectURL(j)
 return A.T(null,r)}})
 return A.U($async$xn,r)},
 S9(){var s,r,q=this
