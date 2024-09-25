@@ -208,8 +208,9 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
           if (currentChapter != null) {
             for (int i = currentChapter.parts.length - 1; i > 0; i--) {
               var checkingPart = currentChapter.parts[i];
-              if (checkingPart.lines.length == 2 && checkingPart.lines.first.content.startsWith('-')) {
-                checkingPart.lines.last.content = breakTimeDefault;
+              if (checkingPart.lines.length == 1 && checkingPart.lines.first.content.startsWith('-')) {
+                //checkingPart.lines.last.content = breakTimeDefault;
+                checkingPart.lines.add(Line(content: breakTimeDefault, isBold: false));
                 break;
               }
             }   
@@ -266,7 +267,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
   // Điều chỉnh để không thêm break time cho Part cuối của mỗi Chapter
   void _addBreakTimeIfNecessary(Part part) {
     if (part.lines.length == 1 && part.lines.first.content.startsWith('-')) {
-      part.lines.add(Line(content: breakTimeNumberic, isBold: false));
+      //part.lines.add(Line(content: breakTimeNumberic, isBold: false));
     } else {
       // Check for special phrases
       bool containsSpecialPhrase = part.lines.any((line) {
