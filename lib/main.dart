@@ -266,6 +266,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
 
   // Điều chỉnh để không thêm break time cho Part cuối của mỗi Chapter
   void _addBreakTimeIfNecessary(Part part) {
+    if (part.lines.isEmpty) return;
     if (part.lines.length == 1 && part.lines.first.content.startsWith('-')) {
       //part.lines.add(Line(content: breakTimeNumberic, isBold: false));
     } else {
@@ -276,7 +277,10 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
       if (containsSpecialPhrase) {
         part.lines.add(Line(content: breakTimeSubtitle, isBold: false));
       } else {
-        part.lines.add(Line(content: breakTimeDefault, isBold: false));
+        var firsLine = part.lines.first;
+        if (!firsLine.content.startsWith('-')) {
+          part.lines.add(Line(content: breakTimeDefault, isBold: false));
+        }
       }
     }
   }
