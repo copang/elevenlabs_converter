@@ -180,13 +180,25 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
         StringBuffer paragraphBuffer = StringBuffer();
         bool isBoldParagraph = false;
 
+        var paraText = paragraph.text;
+        var paraXML = paragraph.toXmlString(pretty: true);
+
         for (final run in paragraph.findAllElements('w:r')) {
           final text = run.findElements('w:t').map((e) => e.text).join();
 
           // Kiểm tra phần tử `w:rPr` trong `w:r` để xác định in đậm
+          // final isBold = run.findElements('w:rPr').any((rPr) {
+          //   return rPr.findElements('w:b').isNotEmpty;
+          // });
+
           final isBold = run.findElements('w:rPr').any((rPr) {
-            return rPr.findElements('w:b').isNotEmpty;
+            return rPr.findElements('w:b').isNotEmpty || 
+                  rPr.findElements('w:rStyle').any((rStyle) {
+                    return rStyle.getAttribute('w:val') == 'Bold' || rStyle.getAttribute('w:val') == 'Strong';
+                  });
           });
+
+
 
           if (isBold) {
             isBoldParagraph = true;
@@ -286,7 +298,14 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
   }
 
   List<String> _splitIntoSentences(String paragraph) {
-    final sentenceRegEx = RegExp(r'([.!?])\s+');
+    final sentenceRegEx = RegExp(
+      // Loại trừ từ viết tắt
+      r'(?<!\b(?:Mr|Ms|Mrs|Dr|St|U\.S\.A|U\.N|etc|vs))' 
+      // Dấu câu theo sau bởi khoảng trắng và ký tự đầu là chữ in hoa
+      r'([.!?])\s+(?=[A-Z])'            
+      // Không bao gồm dấu ngoặc kép/đơn sau dấu câu                 
+      "(?![\"'])");                                   
+
     List<String> sentences = [];
     final matches = sentenceRegEx.allMatches(paragraph);
 
