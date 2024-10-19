@@ -321,9 +321,11 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
       // Loại trừ từ viết tắt
       r'(?<!\b(?:Mr|Ms|Mrs|Dr|St|U\.S\.A|U\.N|etc|vs))' 
       // Dấu câu theo sau bởi khoảng trắng và ký tự đầu là chữ in hoa
-      r'([.!?])\s+(?=[A-Z])'            
+      //r'([.!?])\s+(?=[A-Z])'   
+      r'([.!?])\s+(?=\p{Lu})'         
       // Không bao gồm dấu ngoặc kép/đơn sau dấu câu                 
-      "(?![\"'])");                                   
+      "(?![\"'])",
+      unicode: true);                                   
 
     List<String> sentences = [];
     final matches = sentenceRegEx.allMatches(paragraph);
