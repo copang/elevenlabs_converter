@@ -58,7 +58,7 @@ class DocxReaderScreen extends StatefulWidget {
 class _DocxReaderScreenState extends State<DocxReaderScreen> {
   DocType? currentDocType;
   List<Chapter> chapters = [];
-  List<Line> ntcContent = [];
+  List<Chapter> ntcContent = [];
   final breakTimeDefault = "<break time=“1.1s” />";
   final breakTimeSubtitle = "<break time=“0.5s” />";
   final breakTimeNumberic = "<break time=“0.3s” />";
@@ -108,7 +108,10 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
       final contentXml = documentFile.content as List<int>;
       final documentXml = XmlDocument.parse(utf8.decode(contentXml));
       final paragraphs = documentXml.findAllElements('w:p');
-      List<Line> tempNtcContent = [];
+      List<Chapter> tempChapters = [];
+      Chapter? currentChapter;
+      Part? currentPart;
+      int titleCount = 0;
 
       for (final paragraph in paragraphs) {
         StringBuffer paragraphBuffer = StringBuffer();
@@ -123,11 +126,27 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
           continue;
         }
 
-        tempNtcContent.add(Line(content: paragraphText, isBold: false));
+        titleCount++;
+        currentChapter = Chapter(
+          title: Line(content: titleCount.toString(), isBold: true),
+          parts: [],
+        );
+
+        final sentences = _splitIntoSentences(paragraphText);
+        currentPart = Part(lines: []);
+        for (var sentence in sentences) {
+          currentPart.lines.add(Line(content: sentence, isBold: false));
+        }
+
+        if (currentChapter.parts.isEmpty || currentChapter.parts.last != currentPart) {
+          currentChapter.parts.add(currentPart);
+        }
+
+        tempChapters.add(currentChapter);
       }
 
       setState(() {
-        ntcContent = tempNtcContent;
+        ntcContent = tempChapters;
       });
     }
   }
@@ -413,9 +432,21 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
     <body>
     """);
 
-    // Lặp qua từng Line để tạo nội dung HTML
-    for (Line line in ntcContent) {
-      htmlContent.write("<h6>${_escapeHtml(line.content)}</h6>");
+    // Lặp qua từng Chapter và Part để tạo nội dung HTML
+    for (Chapter chapter in ntcContent) {
+      htmlContent.write("<h2>${_escapeHtml(chapter.title.content)}</h2>"); // Title là Heading 2
+      for (Part part in chapter.parts) {
+        for (Line line in part.lines) {
+          String escapedContent = _escapeHtml(line.content);
+          if (line.isBold) {
+            // Nếu isBold = true thì xuất thẻ <b>
+            htmlContent.write("<p><b>$escapedContent</b></p>");
+          } else {
+            // Xuất dòng bình thường với thẻ <p>
+            htmlContent.write("<p>$escapedContent</p>");
+          }
+        }
+      }
     }
 
     // Đóng body và html
@@ -455,7 +486,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
   // Hiển thị dữ liệu đã xử lý và nút "Copy"
   List<Widget> _buildWidgets() {
     if (currentDocType == DocType.ntc) {
-      return ntcContent.map((line) {
+      return ntcContent.map((chapter) {
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 20),
           padding: const EdgeInsets.all(15),
@@ -468,14 +499,43 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
             children: [
               ElevatedButton(
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: line.content));
+                  String chapterContent = "${chapter.title.content}\n";
+                  for (var part in chapter.parts) {
+                    for (var line in part.lines) {
+                      chapterContent += "${line.content}\n";
+                    }
+                  }
+
+                  Clipboard.setData(ClipboardData(text: chapterContent));
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã sao chép!")));
                 },
                 child: const Text("Sao chép"),
               ),
               const SizedBox(height: 10),
-              Text('${line.content}\n', 
-                style: const TextStyle(color: Colors.black))
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${chapter.title.content}\n',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black, // Cần chỉ định color cho TextSpan
+                      ),
+                    ),
+                    ...chapter.parts.expand((part) {
+                      return part.lines.map((line) {
+                        return TextSpan(
+                          text: '${line.content}\n',
+                          style: const TextStyle(
+                            //fontWeight: line.isBold ? FontWeight.bold : FontWeight.normal,
+                            color: Colors.black, // Cần chỉ định color cho TextSpan
+                          ),
+                        );
+                      });
+                    }),
+                  ],
+                ),
+              )
             ],
           )
         );
