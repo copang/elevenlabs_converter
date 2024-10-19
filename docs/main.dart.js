@@ -39757,7 +39757,7 @@ CH(a){var s=a.a,r=s.length
 if(r===0)return
 if(!(r===1&&B.d.bN(B.b.gJ(s).a,"-")))if(B.b.eB(s,new A.a4g(this)))s.push(new A.eo("<break time=\u201c0.5s\u201d />",!1))
 else if(!B.d.bN(B.b.gJ(s).a,"-"))s.push(new A.eo("<break time=\u201c1.1s\u201d />",!1))},
-GE(a){var s,r,q,p,o,n,m=A.fz("(?<!\\b(?:Mr|Ms|Mrs|Dr|St|U\\.S\\.A|U\\.N|etc|vs))([.!?])\\s+(?=[A-Z])(?![\"'])",!0,!1),l=A.b([],t.s),k=m.oe(0,a)
+GE(a){var s,r,q,p,o,n,m=A.fz("(?<!\\b(?:Mr|Ms|Mrs|Dr|St|U\\.S\\.A|U\\.N|etc|vs))([.!?])\\s+(?=\\p{Lu})(?![\"'])",!0,!0),l=A.b([],t.s),k=m.oe(0,a)
 for(s=new A.pC(k.a,k.b,k.c),r=t.Qz,q=0;s.p();q=n){p=s.d
 o=(p==null?r.a(p):p).b
 n=o.index+o[0].length
