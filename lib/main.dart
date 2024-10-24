@@ -10,7 +10,8 @@ import 'dart:html' as html;
 
 enum DocType {
   stg,
-  ntc
+  ntc,
+  ntcShort
 }
 
 void main() {
@@ -59,6 +60,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
   DocType? currentDocType;
   List<Chapter> chapters = [];
   List<Chapter> ntcContent = [];
+  Part ntcShortContent = Part(lines: []);
   final breakTimeDefault = "<break time=“1.1s” />";
   final breakTimeSubtitle = "<break time=“0.5s” />";
   final breakTimeNumberic = "<break time=“0.3s” />";
@@ -147,6 +149,73 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
 
       setState(() {
         ntcContent = tempChapters;
+      });
+    }
+  }
+
+  Future<void> _readNTCShortFile() async {
+    currentDocType = DocType.ntcShort;
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['docx'],
+    );
+
+    if (result != null) {
+      Archive? archive;
+
+      // Giải nén file docx
+      if (!kIsWeb) {
+        File file = File(result.files.single.path!);
+        final bytes = await file.readAsBytes();
+        archive = ZipDecoder().decodeBytes(bytes);
+      } else {
+        Uint8List? fileBytes = result.files.first.bytes;
+        archive = ZipDecoder().decodeBytes(fileBytes as List<int>);
+      }
+
+      // Tìm file chứa văn bản (usually 'word/document.xml')
+      ArchiveFile? documentFile;
+      for (final file in archive.files) {
+        if (file.name == 'word/document.xml') {
+          documentFile = file;
+          break;
+        }
+      }
+
+      if (documentFile == null) {
+        setState(() {
+          ntcShortContent = Part(lines: []);
+        });
+        return;
+      }
+
+      // Đọc nội dung XML từ document.xml
+      final contentXml = documentFile.content as List<int>;
+      final documentXml = XmlDocument.parse(utf8.decode(contentXml));
+      final paragraphs = documentXml.findAllElements('w:p');
+      Part currentPart = Part(lines: []);
+
+      for (final paragraph in paragraphs) {
+        StringBuffer paragraphBuffer = StringBuffer();
+        for (final run in paragraph.findAllElements('w:r')) {
+          final text = run.findElements('w:t').map((e) => e.text).join();
+          paragraphBuffer.write(text);
+        }
+
+        // Nếu đoạn văn rỗng thì bỏ qua
+        var paragraphText = paragraphBuffer.toString().trim();
+        if (paragraphText.isEmpty) {
+          continue;
+        }
+
+        final sentences = _splitIntoSentences(paragraphText);
+        for (var sentence in sentences) {
+          currentPart.lines.add(Line(content: sentence, isBold: false));
+        }
+      }
+
+      setState(() {
+        ntcShortContent = currentPart;
       });
     }
   }
@@ -485,6 +554,59 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
     }
   }
 
+  Future<void> _saveHtmlForNTCShort() async {
+    StringBuffer htmlContent = StringBuffer();
+
+    // Thêm khai báo meta UTF-8
+    htmlContent.write("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Document</title>
+    </head>
+    <body>
+    """);
+
+    for (Line line in ntcShortContent.lines) {
+      String escapedContent = _escapeHtml(line.content);
+      htmlContent.write("<p>$escapedContent</p>");
+    }
+
+    // Đóng body và html
+    htmlContent.write("</body></html>");
+
+    if (!kIsWeb) {
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Chọn nơi lưu file HTML',
+        fileName: 'ntc_short.html',
+        allowedExtensions: ['html'],
+        type: FileType.custom,
+      );
+      if (result != null) {
+        final file = File(result);
+        await file.writeAsString(htmlContent.toString(), encoding: utf8);
+      }
+    } else {
+      // Chuyển đổi nội dung HTML thành Uint8List
+      final bytes = Uint8List.fromList(utf8.encode(htmlContent.toString()));
+
+      // Tạo một Blob từ nội dung đã mã hóa
+      final blob = html.Blob([bytes]);
+
+      // Tạo URL để tải tệp
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      // Tạo thẻ <a> để thực hiện tải file
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", "nguoi_thanh_cong_short_ai.html")
+        ..click(); // Kích hoạt sự kiện tải xuống
+
+      // Giải phóng URL sau khi tải xong
+      html.Url.revokeObjectUrl(url);
+    }
+  }
+
   // Hiển thị dữ liệu đã xử lý và nút "Copy"
   List<Widget> _buildWidgets() {
     if (currentDocType == DocType.ntc) {
@@ -542,6 +664,49 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
           )
         );
       }).toList();
+    } else if (currentDocType == DocType.ntcShort) {
+      var wg = Container(
+        margin: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.lightBlueAccent.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                String shortContent = "";
+                for (var line in ntcShortContent.lines) {
+                  shortContent += "${line.content}\n";
+                }
+
+                Clipboard.setData(ClipboardData(text: shortContent));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã sao chép!")));
+              },
+              child: const Text("Sao chép"),
+            ),
+            const SizedBox(height: 10),
+            RichText(
+              text: TextSpan(
+                children: [
+                  ...ntcShortContent.lines.map((line) {
+                    return TextSpan(
+                      text: '${line.content}\n',
+                      style: const TextStyle(
+                        //fontWeight: line.isBold ? FontWeight.bold : FontWeight.normal,
+                        color: Colors.black, // Cần chỉ định color cho TextSpan
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            )
+          ],
+        )
+      );
+      return [wg];
     } else {
       return chapters.map((chapter) {
         return Container(
@@ -623,9 +788,25 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
                 ),
                 const SizedBox(width: 20),
                 ElevatedButton(
+                  onPressed: _readNTCShortFile,
+                  child: const Text("Chọn file Short NTC"),
+                ),
+                const SizedBox(width: 20),
+                ElevatedButton(
                   onPressed: () {
                     if (currentDocType != null) {
-                      currentDocType == DocType.stg ? _saveHtmlForSTG() : _saveHtmlForNTC();
+                      switch (currentDocType) {
+                        case DocType.stg:
+                          _saveHtmlForSTG();
+                          break;
+                        case DocType.ntc:
+                          _saveHtmlForNTC();
+                          break;
+                        case DocType.ntcShort:
+                          _saveHtmlForNTCShort();
+                          break;
+                        default:
+                      }
                     }
                   },
                   child: const Text("Xuất file HTML"),
