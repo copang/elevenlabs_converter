@@ -18,8 +18,14 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +63,8 @@ class DocxReaderScreen extends StatefulWidget {
 }
 
 class _DocxReaderScreenState extends State<DocxReaderScreen> {
+  String status = "";
+  bool _isChecked = false;
   DocType? currentDocType;
   List<Chapter> chapters = [];
   List<Chapter> ntcContent = [];
@@ -134,10 +142,14 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
           parts: [],
         );
 
-        final sentences = _splitIntoSentences(paragraphText);
         currentPart = Part(lines: []);
-        for (var sentence in sentences) {
-          currentPart.lines.add(Line(content: sentence, isBold: false));
+        if (_isChecked) {
+          final sentences = _splitIntoSentences(paragraphText);
+          for (var sentence in sentences) {
+            currentPart.lines.add(Line(content: sentence, isBold: false));
+          }
+        } else {
+          currentPart.lines.add(Line(content: paragraphText, isBold: false));
         }
 
         if (currentChapter.parts.isEmpty || currentChapter.parts.last != currentPart) {
@@ -149,6 +161,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
 
       setState(() {
         ntcContent = tempChapters;
+        status = 'Đã đọc xong file script Người Thành Công';
       });
     }
   }
@@ -208,14 +221,19 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
           continue;
         }
 
-        final sentences = _splitIntoSentences(paragraphText);
-        for (var sentence in sentences) {
-          currentPart.lines.add(Line(content: sentence, isBold: false));
+        if (_isChecked) {
+          final sentences = _splitIntoSentences(paragraphText);
+          for (var sentence in sentences) {
+            currentPart.lines.add(Line(content: sentence, isBold: false));
+          }
+        } else {
+          currentPart.lines.add(Line(content: paragraphText, isBold: false));
         }
       }
 
       setState(() {
         ntcShortContent = currentPart;
+        status = 'Đã đọc xong file script SHORT';
       });
     }
   }
@@ -286,8 +304,6 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
                   });
           });
 
-
-
           if (isBold) {
             isBoldParagraph = true;
           }
@@ -310,7 +326,9 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
               var checkingPart = currentChapter.parts[i];
               if (checkingPart.lines.length == 1 && checkingPart.lines.first.content.startsWith('-')) {
                 //checkingPart.lines.last.content = breakTimeDefault;
-                checkingPart.lines.add(Line(content: breakTimeDefault, isBold: false));
+                if (_isChecked) {
+                  checkingPart.lines.add(Line(content: breakTimeDefault, isBold: false));
+                }
                 break;
               }
             }   
@@ -322,13 +340,14 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
           );
           currentPart = null; // Reset part cho Chapter mới
         } else {
-          // Nếu không phải tiêu đề, tách đoạn văn thành câu
-          final sentences = _splitIntoSentences(paragraphText);
-
           currentPart ??= Part(lines: []);
-
-          for (var sentence in sentences) {
-            currentPart.lines.add(Line(content: sentence, isBold: false));
+          if (_isChecked) {
+            final sentences = _splitIntoSentences(paragraphText);
+            for (var sentence in sentences) {
+              currentPart.lines.add(Line(content: sentence, isBold: false));
+            }
+          } else {
+            currentPart.lines.add(Line(content: paragraphText, isBold: false));
           }
 
           // Mỗi khi hoàn thành một đoạn văn, sẽ thêm Part vào Chapter
@@ -360,6 +379,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
 
       setState(() {
         chapters = tempChapters;
+        status = 'Đã đọc xong file script Sách Tinh Gọn';
       });
     }
   }
@@ -375,11 +395,15 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
         return specialPhrases.any((phrase) => line.content.contains(phrase));
       });
       if (containsSpecialPhrase) {
-        part.lines.add(Line(content: breakTimeSubtitle, isBold: false));
+        if (_isChecked) {
+          part.lines.add(Line(content: breakTimeSubtitle, isBold: false));
+        }
       } else {
         var firsLine = part.lines.first;
         if (!firsLine.content.startsWith('-')) {
-          part.lines.add(Line(content: breakTimeDefault, isBold: false));
+          if (_isChecked) {
+            part.lines.add(Line(content: breakTimeDefault, isBold: false));
+          }
         }
       }
     }
@@ -775,6 +799,23 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
+            Row(children: [
+              Checkbox(
+                value: _isChecked,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _isChecked = value ?? false;
+                    currentDocType = null;
+                    chapters = [];
+                    ntcContent = [];
+                    ntcShortContent = Part(lines: []);
+                    status = 'Chưa mở file';
+                  });
+                },
+              ),
+              const Text('Tách câu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),)
+            ],),
+            const SizedBox(height: 20),
             Row(
               children: [
                 ElevatedButton(
@@ -813,14 +854,17 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
                 )
               ],
             ),
-            currentDocType == null ? Container() :
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: _buildWidgets(),
-                ),
-              ),
-            ),
+            const SizedBox(height: 100),
+            currentDocType == null ? 
+            const Text('Chưa mở file', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)) :
+            Text(status, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))
+            // Expanded(
+            //   child: SingleChildScrollView(
+            //     child: Column(
+            //       children: _buildWidgets(),
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
