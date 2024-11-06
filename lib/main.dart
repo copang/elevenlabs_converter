@@ -326,9 +326,7 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
               var checkingPart = currentChapter.parts[i];
               if (checkingPart.lines.length == 1 && checkingPart.lines.first.content.startsWith('-')) {
                 //checkingPart.lines.last.content = breakTimeDefault;
-                if (_isChecked) {
-                  checkingPart.lines.add(Line(content: breakTimeDefault, isBold: false));
-                }
+                checkingPart.lines.add(Line(content: breakTimeDefault, isBold: false));
                 break;
               }
             }   
@@ -395,15 +393,11 @@ class _DocxReaderScreenState extends State<DocxReaderScreen> {
         return specialPhrases.any((phrase) => line.content.contains(phrase));
       });
       if (containsSpecialPhrase) {
-        if (_isChecked) {
-          part.lines.add(Line(content: breakTimeSubtitle, isBold: false));
-        }
+        part.lines.add(Line(content: breakTimeSubtitle, isBold: false));
       } else {
         var firsLine = part.lines.first;
         if (!firsLine.content.startsWith('-')) {
-          if (_isChecked) {
-            part.lines.add(Line(content: breakTimeDefault, isBold: false));
-          }
+          part.lines.add(Line(content: breakTimeDefault, isBold: false));
         }
       }
     }
